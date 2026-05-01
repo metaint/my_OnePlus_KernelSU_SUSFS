@@ -9,7 +9,8 @@ on:
 
 jobs:
   prepare-release:
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: [self-hosted, usvps]
     # runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,7 +39,7 @@ jobs:
           fi
 
   generate-mirror-matrix:
-    runs-on: self-hosted
+    runs-on: [self-hosted, usvps]
     needs: prepare-release
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -150,7 +151,7 @@ jobs:
   mirror-to-release:
     name: build (${{ matrix.type_label }}, ${{ matrix.rev }})
     needs: [prepare-release, generate-mirror-matrix]
-    runs-on: self-hosted
+    runs-on: [self-hosted, usvps]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.generate-mirror-matrix.outputs.matrix) }}
