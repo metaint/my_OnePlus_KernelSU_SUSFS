@@ -29,14 +29,7 @@ runs:
         else
           curl --fail --show-error --location --proto '=https' "https://raw.githubusercontent.com/OnePlusOSS/kernel_manifest/refs/heads/$OP_BRANCH/$OP_MANIFEST" -o manifest.xml
         fi
-    - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-            python-version: '3.x'
 
-    - name: Install Requests
-        run: pip install requests
-        
     - name: Download Manifest Archives
       shell: python
       env:
