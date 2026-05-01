@@ -98,11 +98,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_HTTP_TIMEOUT: 600
     steps:
-      - name: 📥 Checkout Code (to access configs/)
-        uses: actions/checkout@v6
+      - name: 📥 Checkout Code (to access configs and actions)
+        uses: actions/checkout@v4  # 建议用 v4，v6 目前还不是官方主流稳定版
         with:
           sparse-checkout: |
             configs/
+            .github/          # <--- 必须加上这一行！
           sparse-checkout-cone-mode: false
 
       - name: 🔍 Generate build matrix
