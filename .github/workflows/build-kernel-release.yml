@@ -122,7 +122,9 @@ jobs:
           echo "ksu_options_normalized=$ksu_options_normalized" >> $GITHUB_OUTPUT
           
           echo "[" > matrix.json
-          mapfile -t all_json_files < <(find configs/ -name "*.json" -print0 | xargs -0 -n1)
+          # 更新：只要构建 OnePlus13 即可
+          # mapfile -t all_json_files < <(find configs/ -name "*.json" -print0 | xargs -0 -n1)
+          mapfile -t all_json_files < <(find configs/ -name "OP13.json" -print0 | xargs -0 -n1)
           for i in "${!all_json_files[@]}"; do
             file="${all_json_files[$i]}"
             if [ -f "$file" ]; then
