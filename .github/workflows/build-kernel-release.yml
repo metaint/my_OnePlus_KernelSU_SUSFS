@@ -101,11 +101,12 @@ jobs:
       - name: 📥 Checkout Code (to access configs/)
         uses: actions/checkout@v6
         # 不要 sparse，要所有
-        # with:
-        #   sparse-checkout: |
-        #     configs/
-        #     .github/
-        #   sparse-checkout-cone-mode: false
+        with:
+          sparse-checkout: |
+            configs/
+            .github/
+            manifests/
+          sparse-checkout-cone-mode: false
 
       - name: 🔍 Generate build matrix
         id: set-matrix
