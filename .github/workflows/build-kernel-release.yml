@@ -110,6 +110,7 @@ jobs:
         id: set-matrix
         shell: bash
         run: |
+          set -x
           set -euo pipefail
           echo "::group::Matrix generation"
           
