@@ -13,6 +13,11 @@ jobs:
     # runs-on: [self-hosted, usvps]
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -25,7 +30,7 @@ jobs:
           # Check if the release already exists
           TARGET_REPO="${{ github.repository }}"
           TAG_NAME="toolchain-cache"
-          
+
           if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
             echo "Tag not found. Creating backdated tag and release..."
             
@@ -53,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          
+
           echo "[" > all_configs.json
           mapfile -t files < <(find configs/ -name "*.json")
           for i in "${!files[@]}"; do
@@ -73,10 +78,10 @@ jobs:
           import os
           import subprocess
           import shutil
-          
+
           with open('all_configs.json', 'r') as f:
               configs = json.load(f)
-          
+
           unique_toolchains = {}
           TOOLCHAIN_MAP = {
               "clang/host/linux-x86": "clang",
@@ -85,10 +90,10 @@ jobs:
               "prebuilts/build-tools": "build-tools",
               "AnyKernel3": "AnyKernel3"
           }
-          
+
           print(f"Processing {len(configs)} configurations...")
           print("-" * 50)
-          
+
           for cfg in configs:
               op_model = cfg.get('model', 'Unknown')
               op_branch = cfg.get('branch', '')
@@ -166,12 +171,12 @@ jobs:
           REV="${{ matrix.rev }}"
           FILENAME="${{ matrix.cache_file }}"
           BASE_URL="https://github.com/${TARGET_REPO}/releases/download/toolchain-cache"
-          
+
           echo "🔍 Checking if $FILENAME exists in mirror..."
-          
+
           STATUS=$(curl -IsL -o /dev/null -w "%{http_code}" "$BASE_URL/$FILENAME")
           PART_STATUS=$(curl -IsL -o /dev/null -w "%{http_code}" "$BASE_URL/${FILENAME}.partaa")
-          
+
           if [ "$STATUS" -eq 200 ] || [ "$PART_STATUS" -eq 200 ]; then
             echo "✅ ${{ matrix.type_label }} revision ${{ matrix.rev }} already cached."
           else

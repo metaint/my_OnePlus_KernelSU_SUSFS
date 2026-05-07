@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
     inputs:
       make_release:
-        description: 'Do you want to create a release?'
+        description: "Do you want to create a release?"
         required: true
         type: boolean
         default: true
       op_model:
-        description: 'Select the OnePlus kernels to build'
+        description: "Select the OnePlus kernels to build"
         required: true
         type: choice
         options:
@@ -30,7 +30,7 @@ on:
           - android12-5.10
         default: OOS16
       ksu_options:
-        description: 'Enter KernelSU build json'
+        description: "Enter KernelSU build json"
         required: true
         type: string
         default: '[{"type":"ksun","hash":"dev"}]'
@@ -41,58 +41,59 @@ on:
         options: [O2, O3]
         default: O2
       clean_build:
-        description: 'Clean build (no ccache)'
+        description: "Clean build (no ccache)"
         type: boolean
         default: false
       debug:
-        description: 'Enable debug mode: dumping debug related artifacts and show some debug logs'
+        description: "Enable debug mode: dumping debug related artifacts and show some debug logs"
         required: false
         type: boolean
         default: false
       mirror_toolchains:
-        description: 'Do you want to sync toolchains before build? [99% runs not required]'
+        description: "Do you want to sync toolchains before build? [99% runs not required]"
         required: false
         type: boolean
         default: false
       build_timestamp:
         description: 'Custom kernel build timestamp for uname -a (e.g. "Tue Feb 10 10:01:02 UTC 2026"). Leave empty for current time.'
         type: string
-        default: ''
+        default: ""
       android12-5_10_susfs_branch_or_commit:
-        description: 'Enter SusFS Branch or commit hash for android12-5.10'
+        description: "Enter SusFS Branch or commit hash for android12-5.10"
         type: string
-        default: ''
+        default: ""
       android13-5_15_susfs_branch_or_commit:
-        description: 'Enter SusFS Branch or commit hash for android13-5.15'
+        description: "Enter SusFS Branch or commit hash for android13-5.15"
         type: string
-        default: ''
+        default: ""
       android14-6_1_susfs_branch_or_commit:
-        description: 'Enter SusFS Branch or commit hash for android14-6.1'
+        description: "Enter SusFS Branch or commit hash for android14-6.1"
         type: string
-        default: ''
+        default: ""
       android15-6_6_susfs_branch_or_commit:
-        description: 'Enter SusFS Branch or commit hash for android15-6.6'
+        description: "Enter SusFS Branch or commit hash for android15-6.6"
         type: string
-        default: ''
+        default: ""
       android16-6_12_susfs_branch_or_commit:
-        description: 'Enter SusFS Branch or commit hash for android16-6.12'
+        description: "Enter SusFS Branch or commit hash for android16-6.12"
         type: string
-        default: ''
+        default: ""
 
 jobs:
   set-op-model:
     # runs-on: self-hosted
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: oneplus-builder
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       device_count: ${{ steps.set-matrix.outputs.count }}
       active_gki_keys: ${{ steps.set-matrix.outputs.active_gki_keys }}
       susfs_hash_android12_5_10: ${{ steps.set-matrix.outputs.susfs_hash_android12_5_10 }}
       susfs_hash_android13_5_15: ${{ steps.set-matrix.outputs.susfs_hash_android13_5_15 }}
-      susfs_hash_android14_6_1:  ${{ steps.set-matrix.outputs.susfs_hash_android14_6_1 }}
-      susfs_hash_android15_6_6:  ${{ steps.set-matrix.outputs.susfs_hash_android15_6_6 }}
+      susfs_hash_android14_6_1: ${{ steps.set-matrix.outputs.susfs_hash_android14_6_1 }}
+      susfs_hash_android15_6_6: ${{ steps.set-matrix.outputs.susfs_hash_android15_6_6 }}
       susfs_hash_android16_6_12: ${{ steps.set-matrix.outputs.susfs_hash_android16_6_12 }}
-      ksu_resolved_hash:    ${{ steps.set-matrix.outputs.ksu_resolved_hash }}
+      ksu_resolved_hash: ${{ steps.set-matrix.outputs.ksu_resolved_hash }}
       ksu_options_normalized: ${{ steps.set-matrix.outputs.ksu_options_normalized }}
       susfs_base_version: ${{ steps.set-matrix.outputs.susfs_base_version }}
     env:
@@ -116,16 +117,16 @@ jobs:
           set -x
           set -euo pipefail
           echo "::group::Matrix generation"
-          
+
           input="${{ github.event.inputs.op_model }}"
           ksu_options_raw='${{ github.event.inputs.ksu_options }}'
           if ! ksu_options_normalized=$(echo "$ksu_options_raw" | jq -c 'map(if .type then .type |= ascii_upcase | if .hash == null then if .type == "KSUN" then .hash = "dev" elif .type == "KSU" then .hash = "main" else .hash end else . end else error("No type found") end)' 2>&1); then
             echo "::error::ksu_options validation failed: $ksu_options_normalized"
             exit 1
           fi
-          
+
           echo "ksu_options_normalized=$ksu_options_normalized" >> $GITHUB_OUTPUT
-          
+
           echo "[" > matrix.json
           # 更新：只要构建 OnePlus13 即可
           # mapfile -t all_json_files < <(find configs/ -name "*.json" -print0 | xargs -0 -n1)
@@ -140,9 +141,9 @@ jobs:
             fi
           done
           echo "]" >> matrix.json
-          
+
           jq_filter="."
-          
+
           case "$input" in
             OOS14+15+16)
               ;;
@@ -176,17 +177,17 @@ jobs:
               jq_filter="map(select(false))"
               ;;
           esac
-          
+
           filtered=$(jq -c "$jq_filter" matrix.json)
           count=$(jq 'length' <<<"$filtered")
-          
+
           filtered=$(echo "$filtered" | jq '
             sort_by(
               (.os_version | gsub("OOS"; "") | tonumber) * -1,
               .model
             )
           ')
-          
+
           if [ "$count" -eq 0 ]; then
             echo "::error::No config files found for input '$input' after applying filters!"
             echo ""
@@ -194,24 +195,24 @@ jobs:
             jq -r '.[] | "  - \(.model) (\(.os_version), \(.android_version)-\(.kernel_version))"' matrix.json
             exit 1
           fi
-          
+
           echo "$filtered" | jq '.' > matrix.json
-          
+
           # For each device + each ksu option → one combined entry
           merged_matrix=$(jq -n --argjson devices "$filtered" --argjson ksu_list "$ksu_options_normalized" '[ $devices[] as $dev | $ksu_list[] as $ksu | ($dev + {ksu_type: $ksu.type, ksu_hash: $ksu.hash}) ]')
-          
+
           final_count=$(echo "$merged_matrix" | jq 'length')
-          
+
           echo "✅ Found $final_count device(s) to build"
           echo ""
           echo "Selected devices:"
           jq -r '.[] | "  - \(.model) (\(.os_version), \(.android_version)-\(.kernel_version), \(.ksu_type) - \(.ksu_hash))"' <<<"$merged_matrix"
-          
+
           echo "count=$count" >> "$GITHUB_OUTPUT"
-          
+
           ksu_type=$(echo "$ksu_options_normalized" | jq -r '.[0].type')
           ksu_ref=$(echo "$ksu_options_normalized" | jq -r '.[0].hash')
-          
+
           if [ "$ksu_type" == "KSUN" ]; then
             KSU_REPO_OWNER="KernelSU-Next"
             KSU_REPO_NAME="KernelSU-Next"
@@ -219,10 +220,10 @@ jobs:
             KSU_REPO_OWNER="tiann"
             KSU_REPO_NAME="KernelSU"
           fi
-          
+
           HEAD_REF="refs/heads/${ksu_ref}"
           TAG_REF="refs/tags/${ksu_ref}"
-          
+
           QUERY='query($owner: String!, $name: String!, $headRef: String!, $tagRef: String!, $objRef: String!) {
             repository(owner: $owner, name: $name) {
               hb: ref(qualifiedName: $headRef) { t: target { ... on Commit { o: oid } } }
@@ -230,13 +231,13 @@ jobs:
               ho: object(expression: $objRef) { ... on Commit { o: oid } }
             }
           }'
-          
+
           MAX_RETRIES=3
           RETRY_COUNT=0
           RETRY_DELAY=5 # Seconds to wait between retries
-          
+
           echo "Resolving $ksu_type hash ($ksu_ref)..."
-          
+
           until [ $RETRY_COUNT -ge $MAX_RETRIES ]; do
             RESULT=$(gh api graphql -f query="$QUERY" -f owner="$KSU_REPO_OWNER" -f name="$KSU_REPO_NAME" -f headRef="$HEAD_REF" -f tagRef="$TAG_REF" -f objRef="$ksu_ref" 2>/dev/null)
             EXIT_CODE=$?
@@ -250,29 +251,29 @@ jobs:
             echo "::warning::API failed (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in ${RETRY_DELAY}s..."
             sleep $RETRY_DELAY
           done
-          
+
           if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
             echo "::error::GitHub API unreachable. Cannot validate $ksu_ref"
             exit 1
           fi
-          
+
           resolved_sha=$(echo "$RESULT" | jq -r '.data.repository | (.hb.t.o // .ht.t.o // .ho.o // "unknown")')
-          
+
           if [ "$resolved_sha" == "unknown" ]; then
             echo "::error::Ref/Hash '$ksu_ref' does not exist in $KSU_REPO_OWNER/$KSU_REPO_NAME"
             exit 1
           fi
-          
+
           echo "  ✅ Resolved: $ksu_type/$ksu_ref → $resolved_sha"
           echo "ksu_resolved_hash=$resolved_sha" >> "$GITHUB_OUTPUT"
-          
+
           # Inject ksu_resolved_hash into each device in the matrix
           merged_matrix=$(echo "$merged_matrix" | jq  --arg resolved_sha "$resolved_sha" 'map(.ksu_resolved_hash = $resolved_sha)')
-          
+
           # SUSFS hash fetch
           SUSFS_REPO="https://gitlab.com/simonpunk/susfs4ksu.git"
           GITLAB_PROJECT_PATH="simonpunk/susfs4ksu"
-          
+
           declare -A default_branches=(
             ["android12-5.10"]="gki-android12-5.10"
             ["android13-5.15"]="gki-android13-5.15"
@@ -280,7 +281,7 @@ jobs:
             ["android15-6.6"]="gki-android15-6.6"
             ["android16-6.12"]="gki-android16-6.12"
           )
-          
+
           declare -A user_inputs=(
             ["android12-5.10"]="${{ inputs.android12-5_10_susfs_branch_or_commit }}"
             ["android13-5.15"]="${{ inputs.android13-5_15_susfs_branch_or_commit }}"
@@ -288,18 +289,18 @@ jobs:
             ["android15-6.6"]="${{ inputs.android15-6_6_susfs_branch_or_commit }}"
             ["android16-6.12"]="${{ inputs.android16-6_12_susfs_branch_or_commit }}"
           )
-          
+
           mapfile -t active_keys < <(
             echo "$merged_matrix" \
               | jq -r '.[] | select(.susfs == true) | "\(.android_version)-\(.kernel_version)"' \
               | sort -u
           )
-          
+
           echo "🔍 Resolving SUSFS hashes for: ${active_keys[*]:-none}"
-          
+
           declare -A susfs_hashes
           declare -A susfs_versions_per_key
-          
+
           for key in "${active_keys[@]}"; do
             default_val="${default_branches[$key]}"
             user_val="${user_inputs[$key]:-$default_val}"
@@ -358,18 +359,18 @@ jobs:
             susfs_hashes["$key"]="$resolved"
             echo "  ✅ Resolved: $key → $resolved"
           done
-          
+
           # Write CSV list of active GKI versions
           active_gki_keys_csv=$(IFS=','; echo "${active_keys[*]:-}")
           echo "active_gki_keys=$active_gki_keys_csv" >> "$GITHUB_OUTPUT"
-          
+
           # Write hash to GITHUB_OUTPUT
           echo "susfs_hash_android12_5_10=${susfs_hashes[android12-5.10]:-unknown}" >> "$GITHUB_OUTPUT"
           echo "susfs_hash_android13_5_15=${susfs_hashes[android13-5.15]:-unknown}" >> "$GITHUB_OUTPUT"
           echo "susfs_hash_android14_6_1=${susfs_hashes[android14-6.1]:-unknown}"   >> "$GITHUB_OUTPUT"
           echo "susfs_hash_android15_6_6=${susfs_hashes[android15-6.6]:-unknown}"   >> "$GITHUB_OUTPUT"
           echo "susfs_hash_android16_6_12=${susfs_hashes[android16-6.12]:-unknown}" >> "$GITHUB_OUTPUT"
-          
+
           # SUSFS_VERSION — only when releasing
           if [ "${{ inputs.make_release }}" = "true" ]; then
             susfs_base_version="unknown"
@@ -397,7 +398,7 @@ jobs:
             
             echo "susfs_base_version=$susfs_base_version" >> "$GITHUB_OUTPUT"
           fi
-          
+
           # Inject susfs_resolved_hash into each device in the matrix
           susfs_hashes_json=$(jq -n \
             --arg a12 "${susfs_hashes[android12-5.10]:-unknown}" \
@@ -412,22 +413,22 @@ jobs:
               "android15-6.6":  $a15,
               "android16-6.12": $a16
             }')
-          
+
           merged_matrix=$(echo "$merged_matrix" | jq \
             --argjson hashes "$susfs_hashes_json" \
             '[.[] | . + {susfs_resolved_hash: ($hashes["\(.android_version)-\(.kernel_version)"] // "unknown")}]')
-          
+
           merged_matrix=$(echo "$merged_matrix" | jq '
             sort_by(
               (.os_version | gsub("OOS"; "") | tonumber? // 0) * -1,
               .model
             )
           ')
-          
+
           # Recalculate wrapped with updated matrix and write output
           wrapped=$(jq -n --argjson items "$merged_matrix" '{ include: $items }')
           echo "matrix=$(jq -c . <<< "$wrapped")" >> "$GITHUB_OUTPUT"
-          
+
           echo "::endgroup::"
 
       - name: Upload build matrix
@@ -442,7 +443,7 @@ jobs:
         run: |
           ksu_type="${{ fromJSON(steps.set-matrix.outputs.ksu_options_normalized)[0].type }}"
           ksu_ref="${{ fromJSON(steps.set-matrix.outputs.ksu_options_normalized)[0].hash }}"
-          
+
           ksu_display=""
           if [ "$ksu_type" = "KSUN" ] || [ "$ksu_type" = "KSU" ]; then
             if [[ "$ksu_ref" =~ ^[0-9a-f]{40}$ ]]; then
@@ -451,38 +452,38 @@ jobs:
               ksu_display+="🔀 \`$ksu_type\`, \`$ksu_ref\` (\`${{ steps.set-matrix.outputs.ksu_resolved_hash }}\`)"
             fi
           fi
-          
+
           build_ts_input="${{ inputs.build_timestamp }}"
           if [ -z "$build_ts_input" ]; then
             build_ts_display="⏱️ auto (current build time)"
           else
             build_ts_display="📌 \`$build_ts_input\`"
           fi
-          
+
           {
             cat << 'EOF'
           ## 🎯 Build Plan
-          
+
           **Target:** ${{ inputs.op_model }}  
           **Devices:** ${{ steps.set-matrix.outputs.count }}  
-          
+
           **Configuration:**
           EOF
-          
+
             echo "- KSU Config: $ksu_display"
             echo "- Build Timestamp: $build_ts_display"
-          
+
             cat << 'EOF'
           - Optimization: ${{ inputs.optimize_level }}
           - Clean Build/No Ccache: ${{ inputs.clean_build && '✅ Yes' || '❌ No' }}
           - Create Release: ${{ inputs.make_release && '✅ Yes' || '❌ No' }}
           - Create Debug Artifacts: ${{ inputs.debug && '✅ Yes' || '❌ No' }}
           - Sync toolchains: ${{ inputs.mirror_toolchains && '✅ Yes' || '❌ No' }}
-          
+
           **SUSFS Configuration:**
           EOF
           } >> "$GITHUB_STEP_SUMMARY"
-          
+
           # Display SUSFS config for each kernel version
           declare -A susfs_inputs=(
             ["android12-5.10"]="${{ inputs.android12-5_10_susfs_branch_or_commit }}"
@@ -491,7 +492,7 @@ jobs:
             ["android15-6.6"]="${{ inputs.android15-6_6_susfs_branch_or_commit }}"
             ["android16-6.12"]="${{ inputs.android16-6_12_susfs_branch_or_commit }}"
           )
-          
+
           declare -A step_hashes=(
             ["android12-5.10"]="${{ steps.set-matrix.outputs.susfs_hash_android12_5_10 }}"
             ["android13-5.15"]="${{ steps.set-matrix.outputs.susfs_hash_android13_5_15 }}"
@@ -499,11 +500,11 @@ jobs:
             ["android15-6.6"]="${{ steps.set-matrix.outputs.susfs_hash_android15_6_6 }}"
             ["android16-6.12"]="${{ steps.set-matrix.outputs.susfs_hash_android16_6_12 }}"
           )
-          
+
           # Iterate only on the GKI versions present in this run
           IFS=',' read -ra active_keys_display \
             <<< "${{ steps.set-matrix.outputs.active_gki_keys }}"
-          
+
           for key in "${active_keys_display[@]}"; do
             value="${susfs_inputs[$key]:-}"
             fetched_hash="${step_hashes[$key]:-unknown}"
@@ -519,10 +520,10 @@ jobs:
               echo "- $key: 🔀 \`$value\` (\`$fetched_hash\`)" >> $GITHUB_STEP_SUMMARY
             fi
           done
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> **💡 Note:** Hashes are resolved at run time via API calls before builds start." >> $GITHUB_STEP_SUMMARY
-          
+
           # Add OOS restriction note for android-kernel filters
           if [[ "${{ inputs.op_model }}" == android*-*.* ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -543,7 +544,8 @@ jobs:
       needs.set-op-model.result == 'success' &&
       (needs.mirror_toolchain.result == 'success' || needs.mirror_toolchain.result == 'skipped')
     # runs-on: self-hosted
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: oneplus-builder
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-op-model.outputs.matrix) }}
@@ -582,7 +584,7 @@ jobs:
           sudo cp -f ./ccache /usr/bin/ccache
           sudo chmod +x /usr/bin/ccache
           rm -f ./ccache
-          
+
           echo "[DEBUG] Ccache version : $(ccache --version)"
           echo "::endgroup::"
 
@@ -663,7 +665,7 @@ jobs:
         if: always()
         run: |
           echo "::group::Build Statistics"
-          
+
           echo "Device: ${{ matrix.model }}"
           echo "OS Version: ${{ matrix.os_version }}"
           echo "Kernel: ${{ matrix.android_version }}-${{ matrix.kernel_version }}"
@@ -671,7 +673,7 @@ jobs:
             echo "SUSFS Hash: ${{ matrix.susfs_resolved_hash }}"
           fi
           echo "Status: ${{ job.status }}"
-          
+
           if [ "${{ steps.build.outcome }}" = "success" ]; then
             echo ""
             echo "✅ Build completed successfully"
@@ -705,25 +707,25 @@ jobs:
           else
             echo "❌ Build failed"
           fi
-          
+
           echo "::endgroup::"
 
       - name: 📝 Job summary
         if: always()
         run: |
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          
+
           ### ${{ matrix.model }} (${{ matrix.os_version }}) - ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}
-          
+
           **Kernel:** ${{ matrix.android_version }}-${{ matrix.kernel_version }}
           EOF
-          
+
           if [ "${{ matrix.susfs }}" = true ]; then
             cat >> $GITHUB_STEP_SUMMARY << EOF
           **SUSFS Hash:** \`${{ matrix.susfs_resolved_hash }}\`
           EOF
           fi
-          
+
           if [ "${{ steps.build.outcome }}" = "success" ]; then
             cat >> $GITHUB_STEP_SUMMARY << EOF
           | Metric | Value |
@@ -761,7 +763,7 @@ jobs:
             fi
             
             cat >> $GITHUB_STEP_SUMMARY << EOF
-          
+
           **Image SHA256:** \`${{ steps.build.outputs.image_sha256 }}\`
           **AnyKernel3 Zip SHA256:** \`${{ steps.build.outputs.zip_sha256 }}\`
           EOF
@@ -771,14 +773,14 @@ jobs:
         if: always()
         run: |
           echo "::group::Cleanup"
-          
+
           # Remove build artifacts but PRESERVE ccache
           sudo rm -rf "$GITHUB_WORKSPACE/out" || true
           sudo rm -rf "$GITHUB_WORKSPACE/build" || true
           sudo rm -rf "$GITHUB_WORKSPACE/kernel/out" || true
           sudo rm -rf "$GITHUB_WORKSPACE/.repo" || true
           sudo rm -rf /tmp/* || true
-          
+
           # Show ccache stats (don't clear it!)
           if command -v ccache >/dev/null 2>&1; then
             echo ""
@@ -787,24 +789,25 @@ jobs:
             echo ""
             echo "💾 ccache preserved for next build"
           fi
-          
+
           echo ""
           echo "💽 Final disk usage:"
           df -h /
-          
+
           echo "::endgroup::"
 
   trigger-release:
     needs: [set-op-model, build]
     # runs-on: self-hosted
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: oneplus-builder
     if: ${{ inputs.make_release }}
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       REPO_NAME: ${{ github.event.repository.name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SUSFS_BASE_VERSION: ${{ needs.set-op-model.outputs.susfs_base_version }}
-      RELEASE_NAME: '*TEST BUILD* OnePlus Kernels With KernelSU Next & SUSFS ${{ needs.set-op-model.outputs.susfs_base_version }} *TEST BUILD*'
+      RELEASE_NAME: "*TEST BUILD* OnePlus Kernels With KernelSU Next & SUSFS ${{ needs.set-op-model.outputs.susfs_base_version }} *TEST BUILD*"
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v6
@@ -818,7 +821,7 @@ jobs:
             --jq "[.[] | select(.name | startswith(\"${SUSFS_BASE_VERSION}-r\"))] \
                   | sort_by(.name | split(\"-r\")[1] | tonumber) \
                   | last | .name // empty")
-          
+
           if [ -z "$LATEST_MATCHING_TAG" ]; then
             # No existing release for this version SUSFS → first release
             NEW_TAG="${SUSFS_BASE_VERSION}-r1"
@@ -826,7 +829,7 @@ jobs:
             # Only increment the -r* suffix of the latest release for this version
             NEW_TAG=$(echo "$LATEST_MATCHING_TAG" | awk -F'-r' '{printf "%s-r%d", $1, $2+1}')
           fi
-          
+
           echo "New tag: $NEW_TAG"
           echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
           git tag $NEW_TAG
@@ -843,12 +846,12 @@ jobs:
         id: generate-notes
         run: |
           echo "=== Start building the release notes ==="
-          
+
           # Collect build metadata
           declare -A device_info
-          
+
           JSON_BUILD_DATA=$(jq -c '.' ./downloaded-artifacts/matrix.json)
-          
+
           for file in $(find downloaded-artifacts -maxdepth 1 -name "*.zip" -type f | sort); do
             if [ -f "$file" ]; then
               zipname=$(basename "$file" .zip)
@@ -868,14 +871,14 @@ jobs:
               device_info["$full_model"]="$model|$os_version|$kernel_version|$ksu_type|$ksu_ver|$susfs_ver"
             fi
           done
-          
+
           ksu_type="${{ fromJSON(needs.set-op-model.outputs.ksu_options_normalized)[0].type }}"
           ksu_ref="${{ fromJSON(needs.set-op-model.outputs.ksu_options_normalized)[0].hash }}"
           ksu_resolved_hash="${{ needs.set-op-model.outputs.ksu_resolved_hash }}"
-          
+
           OPTIMIZE_LEVEL="${{ inputs.optimize_level }}"
           CLEAN_BUILD="${{ inputs.clean_build }}"
-          
+
           # Hash map for GKI version
           declare -A susfs_map=(
             ["android12-5.10"]="${{ needs.set-op-model.outputs.susfs_hash_android12_5_10 }}"
@@ -884,26 +887,26 @@ jobs:
             ["android15-6.6"]="${{ needs.set-op-model.outputs.susfs_hash_android15_6_6 }}"
             ["android16-6.12"]="${{ needs.set-op-model.outputs.susfs_hash_android16_6_12 }}"
           )
-          
+
           # List of GKI versions present in this run
           IFS=',' read -ra active_gki_keys \
             <<< "${{ needs.set-op-model.outputs.active_gki_keys }}"
-          
+
           cat << EOF > release_notes.md
           # 🎯 OnePlus Kernels with KernelSU Next & SUSFS $SUSFS_BASE_VERSION
-          
+
           > **Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')  
           > **Build ID:** \`${{ github.run_id }}\`  
           > **Workflow:** [\`${{ github.workflow }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
+
           ---
-          
+
           ## 📦 Built Devices (${#device_info[@]} total)
-          
+
           | Model | OS Version | Kernel Version | Features |
           |-------|------------|----------------|----------|
           EOF
-          
+
           for full_key in $(printf '%s\n' "${!device_info[@]}" | sort); do
             IFS='|' read -r model os_ver kernel_ver _ _ _ <<< "${device_info[$full_key]}"
             
@@ -959,7 +962,7 @@ jobs:
             printf "| %-13s | %-10s | %-16s | %-48s |\n" \
               "$model" "$os_ver" "$kernel_ver" "$features_str" >> release_notes.md
           done
-          
+
           if [ ${#device_info[@]} -gt 0 ]; then
             first_entry=$(printf '%s\n' "${!device_info[@]}" | sort | head -n1)
             IFS='|' read -r _ _ _ _ ksu_ver_global _ <<< "${device_info[$first_entry]}"
@@ -967,13 +970,13 @@ jobs:
             echo "::error::No device info found!" >&2
             exit 1
           fi
-          
+
           cat << EOF >> release_notes.md
-          
+
           ---
-          
+
           ## 🔧 Build Configuration
-          
+
           | Component | Version/Setting |
           |-----------|----------------|
           EOF
@@ -987,7 +990,7 @@ jobs:
               echo "$input ($resolved)"
             fi
           }
-          
+
           ksu_display=$(ksu_display_value "$ksu_ref" "$ksu_resolved_hash")
           if [ "$ksu_type" == "KSUN" ]; then
             cat << EOF >> release_notes.md
@@ -1010,19 +1013,19 @@ jobs:
           | **Optimization Level** | \`$OPTIMIZE_LEVEL\` |
           | **Clean Build** | $( [ "$CLEAN_BUILD" = "true" ] && echo "✅ Yes (no ccache)" || echo "❌ No (ccache enabled)" ) |
           | **Compiler** | Clang (version varies by device) |
-          
+
           ### 📌 SUSFS Branch Mapping
-          
+
           | Kernel Version | SUSFS Commit |
           |----------------|--------------|
           $(for key in "${active_gki_keys[@]}"; do
             echo "| $key | \`${susfs_map[$key]:-unknown}\` |"
           done)
-          
+
           ---
-          
+
           ## ✨ Features & Capabilities
-          
+
           ### 🔐 Root Management
           EOF
           if [ "$ksu_type" == "KSUN" ]; then
@@ -1061,7 +1064,7 @@ jobs:
             - ✅ AVC_SPOOF - Spoof Procfs avc denial logs
           - **Ptrace Leak Fix** - For kernels < 5.16
           - **Unicode Fix** - Prevent path traversal and other detections using non-printable Unicode codepoints [Experimental]
-          
+
           ### 🚀 Performance & Networking
           - **BBRv1** - Improved TCP congestion control
           - **Wireguard** - Built-in VPN support
@@ -1070,18 +1073,18 @@ jobs:
           - **LTO (Link Time Optimization)** - Optimized binary size and performance
           - **ccache-accelerated builds** - Faster compilation times
           - **Optimisation Patches** - Memory, I/O, CPU scheduler, network and other general tunings
-          
+
           ### 🔧 System Features
           - **TMPFS_XATTR** - Extended attributes for tmpfs (Mountify support)
           - **TMPFS_POSIX_ACL** - POSIX ACLs for tmpfs
           - **HMBIRD SCX** - Scheduler extensions for all SM8750/MT6991 devices
           - **Droidspaces** - Support Portable Linux containers to run full Linux environments.
           - **NTSync** - Provide high-performance, low-latency synchronization primitives compatible with the Windows NT kernel API
-          
+
           ---
-          
+
           ## 📱 Manager Applications
-          
+
           ### Official Manager
           EOF
           if [ "$ksu_type" == "KSUN" ]; then
@@ -1099,24 +1102,24 @@ jobs:
           ### Community Managers
           - **WildKSU Manager** (Recommended for additional features)  
             → [GitHub Release](https://github.com/WildKernels/Wild_KSU/releases)
-          
+
           ### Required Module
           - **KSU SUSFS Module** (Required for SUSFS features)  
             → [GitHub Release](https://github.com/sidex15/ksu_module_susfs/releases)
-          
+
           ### Recomended Flasher
           - **Kernel Flasher** (Required for flashing AnyKernel3 zips and backups and OTA)  
             → [GitHub Release](https://github.com/fatalcoder524/KernelFlasher/releases)
-          
+
           ---
-          
+
           ## 📥 Installation Instructions
-          
+
           ### Prerequisites
           - Unlocked bootloader.
           - Backup your current boot image.
           - Have root access using Magisk / KernelSU / Apatch (Any forks).
-          
+
           ### Via Kernel Flasher
           1. Download the correct AnyKernel3 ZIP for your device.
           2. If you previously used another root method, clean it up first:
@@ -1128,11 +1131,11 @@ jobs:
           4. Install the KernelSU-Next Manager APK, same version as mentioned in the AnyKernel3 ZIP name.
           5. Open the KernelSU-Next app.
           6. Reboot the device if you performed any cleanup in step 2.
-          
+
           ---
-          
+
           ## 📜 Changelog
-          
+
           ### This Release
           - Updated SUSFS to $SUSFS_BASE_VERSION.
           - Added HMBIRD support for all SM8750/MT6991 devices.
@@ -1147,26 +1150,26 @@ jobs:
           - Unicode Bypass Fix
           - Droidspaces Support
           - NTSync Support
-          
+
           ### Previous Releases
           See [Releases Page](${{ github.server_url }}/${{ github.repository }}/releases)
-          
+
           ---
-          
+
           ## 🙏 Credits
-          
+
           - **KernelSU Next Team** - Root solution
           - **KernelSU Team** - Root solution
           - **simonpunk** - SUSFS development
           - **OnePlus** - Kernel source code
           - **Community Contributors** - Testing and feedback
-          
+
           ---
-          
+
           **⚡ Built with ❤️ by the community**
-          
+
           EOF
-          
+
           echo "--- Final Release Notes ---"
           cat release_notes.md
 
@@ -1191,17 +1194,17 @@ jobs:
         if: success()
         run: |
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          
+
           ---
-          
+
           ## 🎉 Release Created Successfully
-          
+
           **Tag:** [\`${{ env.NEW_TAG }}\`](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.NEW_TAG }})  
           **Kernels:** $(find ./downloaded-artifacts -maxdepth 1 -name "*.zip" -type f | wc -l)
-          
+
           ### 📦 Assets
           EOF
-          
+
           for zip in ./downloaded-artifacts/*.zip; do
             if [ -f "$zip" ]; then
               name=$(basename "$zip")
