@@ -109,6 +109,13 @@ jobs:
             .github/
             manifests/
           sparse-checkout-cone-mode: false
+      - name: update curl
+        shell: bash
+        run: |
+          sudo apt-get update
+          # 明确指定安装 curl 且确保是最新，或者直接忽略版本冲突
+          sudo apt-get install -y --only-upgrade curl || sudo apt-get install -y curl
+          curl --version # 打印版本以验证是否支持 --retry-all-errors
 
       - name: 🔍 Generate build matrix
         id: set-matrix
